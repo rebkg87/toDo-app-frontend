@@ -1,77 +1,110 @@
-<!-- src/components/TaskList.vue -->
 <template>
     <div>
-        <h1>Task List</h1>
+        <h3>Lista de Tareas</h3>
+
         <div>
-            <button @click="loadTasks">Load Tasks</button>
-            <button @click="loadCompletedTasks">Load Completed Tasks</button>
-            <button @click="loadPendingTasks">Load Pending Tasks</button>
+            <button @click="loadTasks">Load All Tasks</button>
+            <button @click="loadCompletedTasks">Completed Tasks</button>
+            <button @click="loadPendingTasks">Pending Tasks</button>
         </div>
+
         <ul>
-            <li v-for="task in tasks" :key="task.id">
-                {{ task.title }} - {{ task.completed ? "Completed" : "Pending" }}
-                <button @click="deleteTask(task.id)">Delete</button>
+            <li v-for="task in filteredTasks" :key="task.id">
+                <label>
+                    <input 
+                        type="checkbox" 
+                        v-model="task.completed" 
+                        @change="updateTaskStatus(task)"
+                    />
+                    {{ task.title }} - {{ task.completed ? "Completed" : "Pending" }}
+                </label>
                 <button @click="editTask(task)">Edit</button>
+                <button @click="deleteTaskHandler(task.id)" class="delete-btn">Delete</button>
             </li>
         </ul>
-        <task-form @task-created="loadTasks" :task="selectedTask" v-if="showForm" />
     </div>
 </template>
 
 <script>
-import {
-    getTasks,
-    deleteTask,
-    getTasksByStatus,
-} from "../services/taskService";
-import TaskForm from "./TaskForm.vue";
+import { getTasks, getTasksByStatus } from "../services/taskService";
 
 export default {
-    components: { TaskForm },
-    data() {
+    name: 'TaskList',
+    props: {
+        tasks: {
+            type: Array,
+            required: true
+        }
+    },data() {
         return {
-            tasks: [],
-            showForm: false,
-            selectedTask: null,
+            filteredTasks: [...this.tasks] 
         };
     },
+    watch: {
+        tasks(newTasks) {
+            this.filteredTasks = [...newTasks];  
+        }
+    },
     methods: {
-        async loadTasks() {
-            try {
-                this.tasks = await getTasks();
-            } catch (error) {
-                console.error(error);
-            }
+        loadTasks() {
+            getTasks().then(tasks => {
+                this.filteredTasks = tasks; 
+            }).catch(error => {
+                console.error("Error loading tasks:", error);
+            });
         },
-        async loadCompletedTasks() {
-            try {
-                this.tasks = await getTasksByStatus(true);
-            } catch (error) {
-                console.error(error);
-            }
+        loadCompletedTasks() {
+            getTasksByStatus(true).then(tasks => {
+                this.filteredTasks = tasks;
+            }).catch(error => {
+                console.error("Error loading completed tasks:", error);
+            });
         },
-        async loadPendingTasks() {
-            try {
-                this.tasks = await getTasksByStatus(false);
-            } catch (error) {
-                console.error(error);
-            }
-        },
-        async deleteTask(taskId) {
-            try {
-                await deleteTask(taskId);
-                this.loadTasks();
-            } catch (error) {
-                console.error(error);
-            }
+        loadPendingTasks() {
+            getTasksByStatus(false).then(tasks => {
+                this.filteredTasks = tasks; 
+            }).catch(error => {
+                console.error("Error loading pending tasks:", error);
+            });
         },
         editTask(task) {
-            this.selectedTask = { ...task }; 
-            this.showForm = true;
+            this.$emit("edit-task", task); 
         },
-    },
-    mounted() {
-        this.loadTasks();
-    },
-};
+        deleteTaskHandler(taskId) {
+            this.$emit("delete-task", taskId); 
+        }
+    }
+}
 </script>
+
+<style scoped>
+button {
+    padding: 8px 16px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+.delete-btn {
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+h3 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+</style>
